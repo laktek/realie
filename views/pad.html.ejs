@@ -1,0 +1,44 @@
+<div id="wrapper">
+	
+		<div id="content">
+      <div id="toolbar">
+        <ul>
+          <li id="pad_title">New Testing Pad (<em>JavaScript</em>)</li>
+          <li id="tb_download" class="button"><a href="#">Download</a></li>
+          <li id="tb_open" class="button"><a href="#">Versions</a></li>
+          <li id="tb_save" class="button"><a href="#">Snapshot</a></li>
+          <li id="tb_playback" class="button"><a href="#">Playback</a></li>
+        </ul>
+      </div>
+      <div id="codearea">
+        <ol id="editable_content" contenteditable="true">
+          <li>test</li>
+          <li>line 2</li>
+        </ol>
+      </div>
+		</div><!-- /content -->
+
+	</div><!-- /wrapper -->
+
+	<div id="sidebar">
+		<ul class="menu"> 
+      <li><h4 class="section_title">Users <a id="add_contact" href="#"><img src="/public/images/add_contact_icon.png" alt="Add Contact"/></a></h4>
+        <ul id="users_list"> 
+        </ul>
+      </li>
+
+      <li id="chat_section">
+      <h4 class="section_title">Chat <a href="#" id="chat_sound_control"><img src="/public/images/chat_sound_icon.png" alt="Sound On"/></a></h4>
+      <audio id="chat_alert_sound" src="http://www.pacdv.com/sounds/interface_sound_effects/sound99.wav" autobuffer></audio>
+        <ul id="chat_messages"> 
+          <li class="datestamp">28 March 2010</li>
+        </ul>
+        <form>
+          <textarea rows="1" id="input_chat_message"></textarea>
+        </form>
+      </li>
+		</ul>
+	</div>
+
+	<div id="extra">
+	</div>

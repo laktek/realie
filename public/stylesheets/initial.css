@@ -1,0 +1,45 @@
+/*
+-------------------------------------------------------------------
+Initial Stylesheet
+By Vesess - vesess.com
+-------------------------------------------------------------------
+*/
+
+/* =INITIAL 
+   v2.1, by Faruk Ates - www.kurafire.net
+   Addendum by Robert Nyman - www.robertnyman.com */
+
+/* Neutralize styling: 
+   Elements we want to clean out entirely: */
+html, body, form, fieldset {
+	margin: 0;
+	padding: 0;
+	font: 100%/150% Arial, Helvetica, sans-serif;
+}
+
+/* Neutralize styling: 
+   Elements with a vertical margin: */
+h1, h2, h3, h4, h5, h6, p, pre,
+blockquote, ul, ol, dl, address {
+	margin: 1em 0;
+	padding: 0;
+}
+
+/* Apply left margin:
+   Only to the few elements that need it: */
+li, dd, blockquote {
+	margin-left: 1em;
+}
+
+/* Miscellaneous conveniences: */
+form label {
+	cursor: pointer;
+}
+fieldset {
+	border: none;
+}
+
+/* Form field text-scaling */
+input, select, textarea {
+	font: 100%/150% Arial,Helvetica,sans-serif; padding: 2px;
+}
