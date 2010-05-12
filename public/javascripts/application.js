@@ -97,11 +97,13 @@ $(function() {
   //window.setInterval(testSetContent, 100);
 
   var user_id;
-  var predefined_colors = ["#FFCFEA", "#E8FF9C", "#FFCC91", "#42C0FF", "#A7FF9E"];
+  var predefined_colors = ["#FFCFEA", "#E8FF9C", "#FFCC91", "#42C0FF", "#A7FF9E", "#7DEFFF",
+                           "#BABDFF", "#FFD4EB", "#AAFF75", "#FF9EAB", "#DCFF91", "8088FF"
+                          ];
   var assigned_colors = {};
 
   //Client Socket Methods
-  var socket = new WebSocket('ws://10.8.55.177:8080');
+  var socket = new WebSocket('ws://realie.web2media.net:8080');
   socket.onmessage = function(ev){
     received_msg = JSON.parse(ev.data);
 
