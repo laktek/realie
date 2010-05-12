@@ -101,7 +101,7 @@ $(function() {
   var assigned_colors = {};
 
   //Client Socket Methods
-  var socket = new WebSocket('ws://192.168.16.70:8080');
+  var socket = new WebSocket('ws://10.8.55.177:8080');
   socket.onmessage = function(ev){
     received_msg = JSON.parse(ev.data);
 
