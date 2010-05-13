@@ -103,7 +103,7 @@ $(function() {
   var assigned_colors = {};
 
   //Client Socket Methods
-  var socket = new WebSocket('ws://realie.web2media.net:8080');
+  var socket = new WebSocket('ws://10.8.55.163:8080');
   socket.onmessage = function(ev){
     received_msg = JSON.parse(ev.data);
 
