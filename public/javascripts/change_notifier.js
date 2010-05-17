@@ -1,5 +1,6 @@
 importScripts('diff_match_patch_uncompressed.js');
 
+var sentDiffs = 0;
 onmessage = function(ev){
   var dmp = new diff_match_patch();
   var previous_text = ev.data[0];
@@ -17,6 +18,13 @@ onmessage = function(ev){
   var patch_list = dmp.patch_make(previous_text, current_text, diff);
 
   // pass the patch back to main thread 
-  if(patch_list.length > 0)
+  if(patch_list.length > 0){
     postMessage(patch_list);
+    sentDiffs += 1;
+  }
+  else
+    if(sentDiffs > 5){
+      postMessage("send_snapshot");
+      sentDiffs = 0;
+    }
 }

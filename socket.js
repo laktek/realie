@@ -7,7 +7,7 @@ function log(data){
 }
 
 var user_count = 0;
-var gatekeeper = redis.createClient();
+var main_store = redis.createClient();
 
 var server = ws.createServer();
 server.listen(8080);
@@ -44,9 +44,28 @@ server.addListener("client", function(conn){
     current_user_id = o.user_id = ++user_count;
 
     //store the current user's id on global store
-    gatekeeper.rpush('pad-users', o.user_id, function(err, reply){
-      gatekeeper.lrange('pad-users', 0, -1, function(err, values){
+    main_store.rpush('pad-users', o.user_id, function(err, reply){
+      main_store.lrange('pad-users', 0, -1, function(err, values){
         conn.write('{"channel": "initial", "id":' + current_user_id + ', "users":[' + values + '] }');
+        
+        //send all the exisiting diff messages
+        // main_store.lrange('pad-diff', 0, -1, function(err, messages){
+        //   for(var msg_id in messages){
+        //     conn.write('{"channel": "diff", "payload": ' + messages[msg_id] + '}');
+        //   }
+        // });
+        //
+
+        // main_store.get('pad-snapshot', function(err, reply){
+        //   if(reply)
+        //     conn.write('{"channel": "snapshot", "payload": ' + reply + '}');
+        // });
+
+        main_store.lrange('pad-chat', 0, -1, function(err, messages){
+          for(var msg_id in messages){
+            conn.write('{"channel": "chat", "payload": ' + messages[msg_id] + '}');
+          }
+        });
 
         //publish the message when joining
         o.redis_publisher.publish("join", JSON.stringify({"user": o.user_id}),
@@ -79,11 +98,19 @@ server.addListener("client", function(conn){
     message_obj = JSON.parse(raw_message);
     channel = message_obj["type"];
     message = message_obj["message"];
+    serialized_message = JSON.stringify({"user": this.user_id, "message": message});
 
-    this.redis_publisher.publish(channel, JSON.stringify({"user": this.user_id, "message": message}),
-      function (err, reply) {
-        sys.puts("Published message to " +
-          (reply === 0 ? "no one" : (reply + " subscriber(s).")));
-    });
+    if(channel == "snapshot"){
+      main_store.set('pad-snapshot', message, function(){});
+    }
+    else {
+      this.redis_publisher.publish(channel, serialized_message,
+        function (err, reply) {
+          sys.puts("Published message to " +
+            (reply === 0 ? "no one" : (reply + " subscriber(s).")));
+          //store the messages on main store
+          main_store.rpush('pad-' + channel, serialized_message, function(err, reply){});
+      });
+    }
   });
 });

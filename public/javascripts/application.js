@@ -36,7 +36,7 @@ $(function() {
   }
 
   var set_editable_content = function(field, content, highlight_color){
-    console.log(content);
+    //console.log(content);
     content = content.replace("[hl]", "<span style='background-color:" + highlight_color + "'>")
     content = content.replace("[ehl]", "</span>")
     $.each(content.split("\n"), function(i, val){
@@ -62,10 +62,12 @@ $(function() {
   var previous_text = get_editable_content();
 
   change_notifier.onmessage = function(ev){
+    console.log(ev.data);
     // send the diff to server via the open socket
-    if(ev.data){
+    if(ev.data != "send_snapshot")
       socket.send('{"type": "diff", "message":' + JSON.stringify(ev.data) + '}');
-    }
+    else
+      takeSnapshot();
   };
 
   patch_worker.onmessage = function(ev){
@@ -86,7 +88,12 @@ $(function() {
     change_notifier.postMessage([previous_text, current_text]);
     //set the current text as previous text
     previous_text = current_text;
-  }
+  };
+
+  //take a snapshot of current edit
+  var takeSnapshot = function(){
+    socket.send('{"type": "snapshot", "message":' + JSON.stringify($("#editable_content").html()) + '}');
+  };
 
   var testSetContent = function(){
     set_editable_content($('#editable_content'), 'hello\nim testing this');
@@ -103,7 +110,7 @@ $(function() {
   var assigned_colors = {};
 
   //Client Socket Methods
-  var socket = new WebSocket('ws://10.8.55.163:8080');
+  var socket = new WebSocket('ws://localhost:8080');
   socket.onmessage = function(ev){
     received_msg = JSON.parse(ev.data);
 
@@ -111,7 +118,6 @@ $(function() {
       case "initial":
         user_id = received_msg["id"];
         for(var user_index in received_msg["users"]){
-          console.log(user_index);
           addUser(received_msg["users"][user_index]);
         }
         break;
@@ -122,6 +128,9 @@ $(function() {
       case "chat":
         if(received_msg["payload"]["user"] != user_id)
           newChatMessage(received_msg["payload"]["user"], received_msg["payload"]["message"]);
+        break;
+      case "snapshot":
+        $("#editable_content").html(received_msg["payload"]["message"]);
         break;
       case "diff":
         if(received_msg["payload"]["user"] != user_id)

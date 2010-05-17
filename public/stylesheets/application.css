@@ -149,8 +149,11 @@ div.form-container div.buttonrow { margin-top: 20px; }
 p.buttonrow { margin-top: 10px; }
 
 /* Code Editor */
-.bespin {
-  width: 100%;
+div#codearea {
   min-height: 540px;
+  padding: 0 0 0 15px;
+  background-color: #E4ECF2; 
 }
 
+ol#editable_content { width: 100%; padding-top: 30px; margin:0; background-color: #fff; min-height: 540px;}
+ol#editable_content li { font-size: 12px; }
