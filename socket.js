@@ -100,8 +100,18 @@ server.addListener("client", function(conn){
     message = message_obj["message"];
     serialized_message = JSON.stringify({"user": this.user_id, "message": message});
 
+    //store snapshot
     if(channel == "snapshot"){
       main_store.set('pad-snapshot', message, function(){});
+    }
+    //send all the exisiting diff messages
+    else if(channel == "playback"){
+      main_store.lrange('pad-diff', 0, -1, function(err, messages){
+        for(var msg_id in messages){
+          log(messages[msg_id]);
+          conn.write('{"channel": "diff", "payload": ' + messages[msg_id] + '}');
+        }
+      });
     }
     else {
       this.redis_publisher.publish(channel, serialized_message,

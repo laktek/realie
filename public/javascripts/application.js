@@ -36,11 +36,11 @@ $(function() {
   }
 
   var set_editable_content = function(field, content, highlight_color){
-    //console.log(content);
+    console.log(content);
     content = content.replace("[hl]", "<span style='background-color:" + highlight_color + "'>")
     content = content.replace("[ehl]", "</span>")
     $.each(content.split("\n"), function(i, val){
-      if(val != ""){
+      //if(val != ""){
         editing_line = field.children()[i];
         if(editing_line != undefined){
           //check the curosr is at current updating line
@@ -55,8 +55,9 @@ $(function() {
         else {
           field.append("<li>" + val + "</li>"); 
         }
-      }
+     // }
     }) 
+    patching_process_running = false;
   }
 
   var previous_text = get_editable_content();
@@ -73,9 +74,9 @@ $(function() {
   patch_worker.onmessage = function(ev){
     patch_user_id = ev.data[0];
     changed_content = ev.data[1];
+
     if(changed_content!= ""){
       set_editable_content($("#editable_content"), changed_content, assigned_colors[patch_user_id]);
-      //$("#editable_content").html(ev.data[0]);
       previous_text = get_editable_content();
     }
   }
@@ -99,15 +100,13 @@ $(function() {
     set_editable_content($('#editable_content'), 'hello\nim testing this');
   }
 
-  // set an interval to invoke taking diffs  (every 500ms)
-  window.setInterval(takeDiff, 500);
-  //window.setInterval(testSetContent, 100);
-
-  var user_id;
+    var user_id;
   var predefined_colors = ["#FFCFEA", "#E8FF9C", "#FFCC91", "#42C0FF", "#A7FF9E", "#7DEFFF",
                            "#BABDFF", "#FFD4EB", "#AAFF75", "#FF9EAB", "#DCFF91", "#8088FF"
                           ];
   var assigned_colors = {};
+  var diff_queue = [];
+  var patching_process_running = false;
 
   //Client Socket Methods
   var socket = new WebSocket('ws://localhost:8080');
@@ -126,15 +125,11 @@ $(function() {
           addUser(received_msg["payload"]["user"]);
         break;
       case "chat":
-        if(received_msg["payload"]["user"] != user_id)
-          newChatMessage(received_msg["payload"]["user"], received_msg["payload"]["message"]);
-        break;
-      case "snapshot":
-        $("#editable_content").html(received_msg["payload"]["message"]);
+        newChatMessage(received_msg["payload"]["user"], received_msg["payload"]["message"]);
         break;
       case "diff":
-        if(received_msg["payload"]["user"] != user_id)
-          applyPatch(received_msg["payload"]["user"], received_msg["payload"]["message"]);
+        //store the diff in a queue
+        diff_queue.push({'user': received_msg["payload"]["user"], 'patch':received_msg["payload"]["message"]})
         break;
       default:
         console.log(received_msg);
@@ -147,6 +142,23 @@ $(function() {
     current_text = get_editable_content(); //$("#editable_content").text();
     patch_worker.postMessage([uid, patch, current_text]);
   };
+
+  var checkForPatches = function(){
+    if(diff_queue.length > 0 && patching_process_running == false) {
+      current_patch = diff_queue.shift(); 
+      
+      if(current_patch["user"] != user_id){
+        applyPatch(current_patch["user"], current_patch["patch"]);
+        patching_process_running = true;
+      }
+    }
+  }
+
+  // set an interval to invoke taking diffs  (every 500ms)
+  window.setInterval(takeDiff, 500);
+
+  // periodically check for available patches and apply them
+  window.setInterval(checkForPatches, 100);
 
   // TODO: highlight the changes
 
@@ -189,16 +201,29 @@ $(function() {
       $("#chat_alert_sound")[0].play();
   }
 
+  var doPlayback = function(){
+    //send a request to get all the diffs available
+    socket.send('{"type": "playback", "message":""}');
+
+    //clear the pad
+    $("#editable_content").html("<li></li>");
+
+  }
+
 
   $("#input_chat_message").keypress(function(ev){
     if((ev.keyCode || ev.which) == 13){
       ev.preventDefault();
 
       socket.send('{"type": "chat", "message":"' +  $(this).val() + '"}');
-      newChatMessage(user_id, $(this).val());
       $(this).val("");
 
     }
   });
+
+  $("#pad_playback").click(function(){
+    doPlayback();
+    return false;     
+  })
 
 });

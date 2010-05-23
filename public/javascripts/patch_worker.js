@@ -6,10 +6,10 @@ onmessage = function(ev){
   
   uid = ev.data[0]
   patch = ev.data[1];
-  ct = ev.data[2];
+  current_text = ev.data[2];
 
   //apply the patch
-  var results = dmp.patch_apply_with_highlight(patch, ct);
+  var results = dmp.patch_apply_with_highlight(patch, current_text);
   //var results = dmp.patch_apply(patch, ct);
 
   // set passed data to local storage

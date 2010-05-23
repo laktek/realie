@@ -11,8 +11,8 @@ onmessage = function(ev){
   var diff = dmp.diff_main(previous_text, current_text);
 
   if (diff.length > 2) {
-   //  dmp.diff_cleanupSemantic(diff);
-     dmp.diff_cleanupEfficiency(diff);
+     dmp.diff_cleanupSemantic(diff);
+   //  dmp.diff_cleanupEfficiency(diff);
   }
 
   var patch_list = dmp.patch_make(previous_text, current_text, diff);

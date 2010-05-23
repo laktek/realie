@@ -1786,8 +1786,10 @@ diff_match_patch.prototype.patch_apply = function(patches, text) {
       }
       if (text1 == text2) {
         // Perfect match, just shove the replacement text in.
+        patched_text = this.diff_text2(patches[x].diffs);
+        (patched_text != "") ? ("[hl]" + patched_text + "[ehl]") : patched_text;
         text = text.substring(0, start_loc) +
-               this.diff_text2(patches[x].diffs) +
+               patched_text +
                text.substring(start_loc + text1.length);
       } else {
         // Imperfect match.  Run a diff to get a framework of equivalent
@@ -1889,9 +1891,14 @@ diff_match_patch.prototype.patch_apply_with_highlight = function(patches, text) 
       }
       if (text1 == text2) {
         // Perfect match, just shove the replacement text in.
-        text = text.substring(0, start_loc) + ("[hl]") + 
-               this.diff_text2(patches[x].diffs) + ("[ehl]") +
-               text.substring(start_loc + text1.length);
+        // text = text.substring(0, start_loc) + ("[hl]") + 
+        //        this.diff_text2(patches[x].diffs) + ("[ehl]") +
+        //        text.substring(start_loc + text1.length);
+        //
+         text = text.substring(0, start_loc) + 
+                this.diff_text2(patches[x].diffs) +
+                text.substring(start_loc + text1.length);
+
       } else {
         // Imperfect match.  Run a diff to get a framework of equivalent
         // indices.
