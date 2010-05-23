@@ -63,7 +63,9 @@ $(function() {
   var previous_text = get_editable_content();
 
   change_notifier.onmessage = function(ev){
-    console.log(ev.data);
+    console.log(ev.data); 
+    playback_mode = false;
+
     // send the diff to server via the open socket
     if(ev.data != "send_snapshot")
       socket.send('{"type": "diff", "message":' + JSON.stringify(ev.data) + '}');
@@ -107,6 +109,7 @@ $(function() {
   var assigned_colors = {};
   var diff_queue = [];
   var patching_process_running = false;
+  var playback_mode = false;
 
   //Client Socket Methods
   var socket = new WebSocket('ws://localhost:8080');
@@ -147,10 +150,11 @@ $(function() {
     if(diff_queue.length > 0 && patching_process_running == false) {
       current_patch = diff_queue.shift(); 
       
-      if(current_patch["user"] != user_id){
-        applyPatch(current_patch["user"], current_patch["patch"]);
-        patching_process_running = true;
-      }
+      if(!playback_mode && (current_patch["user"] == user_id))
+        return false;
+
+      applyPatch(current_patch["user"], current_patch["patch"]);
+      patching_process_running = true;
     }
   }
 
@@ -205,11 +209,13 @@ $(function() {
     //send a request to get all the diffs available
     socket.send('{"type": "playback", "message":""}');
 
+    //turn on the playback mode
+    playback_mode = true;
+
     //clear the pad
     $("#editable_content").html("<li></li>");
 
   }
-
 
   $("#input_chat_message").keypress(function(ev){
     if((ev.keyCode || ev.which) == 13){

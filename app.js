@@ -20,7 +20,7 @@ var main_store = redis.createClient();
 get('/pad', function(){
   self = this;
   main_store.get('pad-snapshot', function(err, reply){
-      var snapshot_html = reply || "<li></li>";
+      var snapshot_html = reply || "<li>&nbsp</li>";
 
       self.render('pad.html.ejs', {
         locals: {

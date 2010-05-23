@@ -98,7 +98,8 @@ server.addListener("client", function(conn){
     message_obj = JSON.parse(raw_message);
     channel = message_obj["type"];
     message = message_obj["message"];
-    serialized_message = JSON.stringify({"user": this.user_id, "message": message});
+    timestamp = new Date().getTime();
+    serialized_message = JSON.stringify({"user": this.user_id, "message": message, "timestamp": timestamp });
 
     //store snapshot
     if(channel == "snapshot"){
