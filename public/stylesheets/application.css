@@ -155,5 +155,5 @@ div#codearea {
   background-color: #E4ECF2; 
 }
 
-ul#editable_content { width: 100%; padding-top: 30px; margin:0; background-color: #fff; min-height: 540px; list-style-type:none;}
+ul#editable_content { width: 100%; margin-top: 25px; padding-top: 5px; background-color: #fff; min-height: 540px; list-style-type:none;}
 ul#editable_content li { font-size: 12px; }

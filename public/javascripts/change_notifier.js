@@ -23,7 +23,7 @@ onmessage = function(ev){
     sentDiffs += 1;
   }
   else
-    if(sentDiffs > 5){
+    if(sentDiffs > 2){
       postMessage("send_snapshot");
       sentDiffs = 0;
     }
