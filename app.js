@@ -20,9 +20,22 @@ var main_store = redis.createClient();
 get('/pad', function(){
   self = this;
   main_store.get('pad-snapshot', function(err, reply){
-      var snapshot_html = reply || "<li>&nbsp</li>";
+      if(reply){
+        sys.puts(JSON.parse(reply.toString('utf8'))["message"]);
+        sys.puts("parsed");
+        var reply_lines = JSON.parse(reply.toString('utf8'))["message"].split("\n"); 
+        var html_lines = [];
+        for(var line_no in reply_lines){
+          html_lines.push("<li>" + reply_lines[line_no] + "</li>"); 
+        }
+        var snapshot_html = html_lines.join("");
+      }
+      else 
+        var snapshot_html = "<li>&nbsp;</li>";
+
 
       self.render('pad.html.ejs', {
+        encoding: 'utf8',
         locals: {
           snapshot: snapshot_html,
         }

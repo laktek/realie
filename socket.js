@@ -103,7 +103,8 @@ server.addListener("client", function(conn){
 
     //store snapshot
     if(channel == "snapshot"){
-      main_store.set('pad-snapshot', message, function(){});
+      sys.puts(serialized_message);
+      main_store.set('pad-snapshot', serialized_message, function(){});
     }
     //send all the exisiting diff messages
     else if(channel == "playback"){

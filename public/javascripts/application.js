@@ -95,7 +95,7 @@ $(function() {
 
   //take a snapshot of current edit
   var takeSnapshot = function(){
-    socket.send('{"type": "snapshot", "message":' + JSON.stringify($("#editable_content").html()) + '}');
+    socket.send('{"type": "snapshot", "message":' + JSON.stringify(get_editable_content()) + '}');
   };
 
   var testSetContent = function(){
