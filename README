@@ -1,0 +1,38 @@
+Realie - A Realtime Collaborative Code Editor
+
+Aim of this project is to build a pastie/gist sort of an online code sharing utility, with realtime collaboration (similar to Etherpad). I started this project as part of my individual research project in the University.
+ You can find my notes related to this project from here - http://www.web2media.net/laktek/tag/realie/
+
+If you like to test out the app you will need to install the following:
+
+1) Chrome Browser (version 5+) - This is because web sockets are still only supported in Chrome. But Firefox and other latest browsers would soon catch up!
+2) Redis 2.0 (still in Release Candidate stage) - http://code.google.com/p/redis/
+3) Node.js - 0.1.96+ (http://nodejs.org)
+
+Follow the standard installations of above programs as mentioned in there documentation.
+
+Once you have setup those, 
+* Clone this repository - https://laktek@github.com/laktek/realie.git
+
+* In app's source path and run:
+  `git submodule init`
+  `git submodule update`
+
+* Then change the path to "vendor/express" and run:
+  `git submodule init`
+  `git submodule update`
+
+* Change the path back to head.
+
+* Now start the redis server (normally running, `etc/redis/redis-server`)
+
+* Then again inside the app's source path run :
+  `node app.js`
+
+* Open another console tab with the same path and run:
+  `node socket.js` 
+
+* Finally, open 
+
+
+
