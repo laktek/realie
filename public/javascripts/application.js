@@ -37,8 +37,8 @@ $(function() {
 
   var set_editable_content = function(field, content, highlight_color){
     console.log(content);
-    content = content.replace("[hl]", "<span style='background-color:" + highlight_color + "'>")
-    content = content.replace("[ehl]", "</span>")
+    content = content.replace(/\[hl\]/g, "<span style='background-color:" + highlight_color + "'>")
+    content = content.replace(/\[ehl\]/g, "</span>")
     $.each(content.split("\n"), function(i, val){
       //if(val != ""){
         editing_line = field.children()[i];
@@ -83,26 +83,7 @@ $(function() {
     }
   }
 
-  // *Sending updates as users type*
-  var takeDiff = function(){
-    // when function is fired assign current text in editable area to a variable
-    current_text = get_editable_content(); //$("#editable_content").text();
-    // run the diff function with content stored in local storage, and in the current variable (run this in a worker)
-    change_notifier.postMessage([previous_text, current_text]);
-    //set the current text as previous text
-    previous_text = current_text;
-  };
-
-  //take a snapshot of current edit
-  var takeSnapshot = function(){
-    socket.send('{"type": "snapshot", "message":' + JSON.stringify(get_editable_content()) + '}');
-  };
-
-  var testSetContent = function(){
-    set_editable_content($('#editable_content'), 'hello\nim testing this');
-  }
-
-    var user_id;
+  var user_id;
   var predefined_colors = ["#FFCFEA", "#E8FF9C", "#FFCC91", "#42C0FF", "#A7FF9E", "#7DEFFF",
                            "#BABDFF", "#FFD4EB", "#AAFF75", "#FF9EAB", "#DCFF91", "#8088FF"
                           ];
@@ -110,6 +91,7 @@ $(function() {
   var diff_queue = [];
   var patching_process_running = false;
   var playback_mode = false;
+  var take_diffs = true;
 
   //Client Socket Methods
   var socket = new WebSocket('ws://localhost:8080');
@@ -138,7 +120,26 @@ $(function() {
         console.log(received_msg);
     }
   }
-  
+
+  // *Sending updates as users type*
+  var takeDiff = function(){
+    // when function is fired assign current text in editable area to a variable
+    current_text = get_editable_content(); //$("#editable_content").text();
+    // run the diff function with content stored in local storage, and in the current variable (run this in a worker)
+    change_notifier.postMessage([previous_text, current_text]);
+    //set the current text as previous text
+    previous_text = current_text;
+  };
+
+  //take a snapshot of current edit
+  var takeSnapshot = function(){
+    socket.send('{"type": "snapshot", "message":' + JSON.stringify(get_editable_content()) + '}');
+  };
+
+  var testSetContent = function(){
+    set_editable_content($('#editable_content'), 'hello\nim testing this');
+  }
+
   // *Receiving updates*
   var applyPatch = function(uid, patch){
     // when function is fired assign current text in editable area to a variable
@@ -213,6 +214,7 @@ $(function() {
     playback_mode = true;
 
     //clear the pad
+    previous_text = "";
     $("#editable_content").html("<li></li>");
 
   }
