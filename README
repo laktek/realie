@@ -32,7 +32,13 @@ Once you have setup those,
 * Open another console tab with the same path and run:
   `node socket.js` 
 
-* Finally, open 
+* Finally, open Chrome and visit:
+  http://localhost:3000/pad
+
+** NB: Web Sockets will use the port 8080 to communicate, so you will need to open that port.
+
+
+Contact me via GitHub if you have issues, suggestions or need any help regarding this app.
 
 
 
