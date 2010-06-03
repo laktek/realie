@@ -2,6 +2,7 @@ $(function() {
   //spawn a new worker to notify the changes
   var change_notifier = new Worker('/public/javascripts/change_notifier.js');
   var patch_worker = new Worker('/public/javascripts/patch_worker.js');
+  //var syntax_highlighting_worker = new Worker('/public/javascripts/syntax_highlighting_worker.js');
 
   var get_editable_content = function(){
     editable_content = "";
@@ -37,8 +38,12 @@ $(function() {
 
   var set_editable_content = function(field, content, highlight_color){
     console.log(content);
-    content = content.replace(/\[hl\]/g, "<span style='background-color:" + highlight_color + "'>")
-    content = content.replace(/\[ehl\]/g, "</span>")
+    
+    if(highlight_color != ""){
+      content = content.replace(/\[hl\]/g, "<span style='background-color:" + highlight_color + "'>")
+      content = content.replace(/\[ehl\]/g, "</span>")
+    }
+
     $.each(content.split("\n"), function(i, val){
       //if(val != ""){
         editing_line = field.children()[i];
@@ -77,11 +82,20 @@ $(function() {
     patch_user_id = ev.data[0];
     changed_content = ev.data[1];
 
-    if(changed_content!= ""){
+    if(changed_content != ""){
       set_editable_content($("#editable_content"), changed_content, assigned_colors[patch_user_id]);
       previous_text = get_editable_content();
     }
   }
+
+//   patch_worker.onmessage = function(ev){
+//     changed_content = ev.data;
+// 
+//     if(changed_content != ""){
+//       set_editable_content($("#editable_content"), changed_content, "");
+//     }
+//   }
+
 
   var user_id;
   var predefined_colors = ["#FFCFEA", "#E8FF9C", "#FFCC91", "#42C0FF", "#A7FF9E", "#7DEFFF",
@@ -159,11 +173,19 @@ $(function() {
     }
   }
 
+  var doSyntaxHighlighting = function(){
+    current_text = get_editable_content();
+    set_editable_content($("#editable_content"), prettyPrintOne(current_text), "");
+  }
+
   // set an interval to invoke taking diffs  (every 500ms)
   window.setInterval(takeDiff, 500);
 
   // periodically check for available patches and apply them
   window.setInterval(checkForPatches, 100);
+
+  // periodically send the content for syntax highlighting
+  window.setInterval(doSyntaxHighlighting, 500);
 
   // TODO: highlight the changes
 
