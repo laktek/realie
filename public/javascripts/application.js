@@ -1,6 +1,6 @@
 $(function() {
   //spawn a new worker to notify the changes
-  var change_notifier = new Worker('/public/javascripts/change_notifier.js');
+  var diff_worker = new Worker('/public/javascripts/diff_worker.js');
   var patch_worker = new Worker('/public/javascripts/patch_worker.js');
   //var syntax_highlighting_worker = new Worker('/public/javascripts/syntax_highlighting_worker.js');
 
@@ -37,8 +37,6 @@ $(function() {
   }
 
   var set_editable_content = function(field, content, highlight_color){
-    console.log(content);
-    
     if(highlight_color != ""){
       content = content.replace(/\[hl\]/g, "<span style='background-color:" + highlight_color + "'>")
       content = content.replace(/\[ehl\]/g, "</span>")
@@ -51,11 +49,15 @@ $(function() {
           //check the curosr is at current updating line
           if(editing_line == getCursorNode()){
             //update the whole line if there are changes
-            if($(val).text() != "")
-              $(editing_line).html(val); 
+            if($(val).text() != ""){
+             // $(editing_line).hide();
+             // $(editing_line).before("<li>" + val + "</li>");
+             // $(editing_line).html(val); 
+            }
           }
-          else
+          else{
             $(editing_line).html(val);
+          }
         }
         else {
           field.append("<li>" + val + "</li>"); 
@@ -65,17 +67,44 @@ $(function() {
     patching_process_running = false;
   }
 
+  var set_highlighted_content = function(field, content){
+     $.each(content.split("\n"), function(i, val){
+      //if(val != ""){
+        editing_line = field.children()[i];
+        if(editing_line != undefined){
+          //check the curosr is at current updating line
+          if(editing_line == getCursorNode()){
+            //update the whole line if there are changes
+            if($(val).text() != ""){
+             // $(editing_line).hide();
+             // $(editing_line).before("<li>" + val + "</li>");
+             // $(editing_line).html(val); 
+            }
+          }
+          else{
+            $(editing_line).html(val);
+          }
+        }
+        else {
+          field.append("<li>" + val + "</li>"); 
+        }
+     // }
+    }) 
+    patching_process_running = false;
+  }
+
+
   var previous_text = get_editable_content();
 
-  change_notifier.onmessage = function(ev){
+  diff_worker.onmessage = function(ev){
+    console.log("received diff")
     console.log(ev.data); 
-    playback_mode = false;
 
     // send the diff to server via the open socket
-    if(ev.data != "send_snapshot")
-      socket.send('{"type": "diff", "message":' + JSON.stringify(ev.data) + '}');
-    else
-      takeSnapshot();
+    //if(ev.data != "send_snapshot")
+      //socket.send('{"type": "diff", "message":' + JSON.stringify(ev.data) + '}');
+    //else
+      //takeSnapshot();
   };
 
   patch_worker.onmessage = function(ev){
@@ -108,32 +137,32 @@ $(function() {
   var take_diffs = true;
 
   //Client Socket Methods
-  var socket = new WebSocket('ws://localhost:8080');
-  socket.onmessage = function(ev){
-    received_msg = JSON.parse(ev.data);
+  // var socket = new WebSocket('ws://localhost:8080');
+  // socket.onmessage = function(ev){
+  //   received_msg = JSON.parse(ev.data);
 
-    switch(received_msg["channel"]){
-      case "initial":
-        user_id = received_msg["id"];
-        for(var user_index in received_msg["users"]){
-          addUser(received_msg["users"][user_index]);
-        }
-        break;
-      case "join":
-        if(received_msg["payload"]["user"] != user_id)
-          addUser(received_msg["payload"]["user"]);
-        break;
-      case "chat":
-        newChatMessage(received_msg["payload"]["user"], received_msg["payload"]["message"]);
-        break;
-      case "diff":
-        //store the diff in a queue
-        diff_queue.push({'user': received_msg["payload"]["user"], 'patch':received_msg["payload"]["message"]})
-        break;
-      default:
-        console.log(received_msg);
-    }
-  }
+  //   switch(received_msg["channel"]){
+  //     case "initial":
+  //       user_id = received_msg["id"];
+  //       for(var user_index in received_msg["users"]){
+  //         addUser(received_msg["users"][user_index]);
+  //       }
+  //       break;
+  //     case "join":
+  //       if(received_msg["payload"]["user"] != user_id)
+  //         addUser(received_msg["payload"]["user"]);
+  //       break;
+  //     case "chat":
+  //       newChatMessage(received_msg["payload"]["user"], received_msg["payload"]["message"]);
+  //       break;
+  //     case "diff":
+  //       //store the diff in a queue
+  //       diff_queue.push({'user': received_msg["payload"]["user"], 'patch':received_msg["payload"]["message"]})
+  //       break;
+  //     default:
+  //       console.log(received_msg);
+  //   }
+  // }
 
   // *Sending updates as users type*
   var takeDiff = function(){
@@ -173,21 +202,193 @@ $(function() {
     }
   }
 
-  var doSyntaxHighlighting = function(){
-    current_text = get_editable_content();
-    set_editable_content($("#editable_content"), prettyPrintOne(current_text), "");
+  $("#editable_content").keydown(function(ev){
+      //don't delete the beyond p
+      if(ev.keyCode == 8 || ev.keyCode == 46){
+        var editing_lines = $("#editable_content").children("div").children("p");
+        if(editing_lines.length == 1 && $(editing_lines[0]).html() == ""){
+          $(editing_lines[0]).html("&nbsp;"); 
+          return false;
+        }
+      }
+  });
+
+  var stored_lines = {};
+
+  var generateUUID = function(){
+    //get the pad id
+    var padid = "1";
+    
+    //get the user id
+    var userid = "1";
+
+    //get the current timestamp (in UTC)
+    var d = new Date();
+    var timestamp = $.map([d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(),
+                     d.getUTCHours(), d.getUTCMinutes(), d.getUTCSeconds(), d.getUTCMilliseconds()], 
+                     function(n, i){
+                      return (n < 10) ? "0"+n : n; 
+                     }).join("");
+
+    //combine them and generate the UUID
+    //format: padid_userid_timestamp
+    return padid + "_" + userid + "_" + timestamp;
+  };
+
+  var applySyntaxHighlighting = function(line){
+    //get the id of the line
+    //(jquery confuses the lines when the content changes, we can avoid it by explicitly calling the line id)
+    var line_id = "#" + $(line).attr("id");
+
+    //keep checking whether the line is still edited by user
+    $(line_id).everyTime(500, function(){
+      if(window.getSelection){
+        var selObj = window.getSelection();
+        var selParent = (selObj.anchorNode && selObj.anchorNode.parentNode);
+        var thisLine = $(line_id);
+
+        //if the line is or its child elements are currently focused;
+        //done attempt to highlight 
+        if(thisLine[0] == selParent || $.contains(thisLine[0], selParent)){
+          console.log(selObj);
+          return false
+        }
+        //if the cursor is not on the line;
+        //apply syntax highlighting;
+        //stop this timer loop
+        else {
+          thisLine.html(prettyPrintOne(thisLine.text()));
+          $(this).stopTime();
+        }
+      }
+    });
+  }
+
+  var inspectLineChanges = function(i){
+    //get all lines inside editable area
+    var editable_lines = $("#editable_content").children("div").children("p");
+
+    removed_lines_uuids = [];
+    //first get the uuids of all the stored lines in to an array
+    for(var line_uuid in stored_lines){
+      removed_lines_uuids.push(line_uuid); 
+    }
+
+    //iterate throught all lines in the editable area
+    editable_lines.each(function(i){
+      //get the uuid of the line
+      var uuid = $(this).attr('data-uuid');
+
+      //is this a newly added line?
+      //all previously stored lines will have a unique uuid 
+      //when a new line is added browser copies the attributes of the previous line as is
+      //also a new line could be without a uuid (first line & pasted lines)
+      if(uuid == undefined || uuid == $(this).prev('p').attr('data-uuid')){
+        //this is a newly added line
+
+        //give it a new id
+        $(this).attr('id', "line" + editable_lines.length);
+        
+        //give it a new uuid
+        new_uuid =  generateUUID();
+        $(this).attr('data-uuid', new_uuid);
+
+        //apply syntax highlighting 
+        applySyntaxHighlighting(this);
+        
+        //store it in the hash
+        stored_lines[new_uuid] = {"content": $(this).text()}
+        
+        //send 'add line' message to server
+        console.log("added line");
+        console.log(stored_lines[new_uuid]);
+      }
+
+      else {
+
+        //check whether this exisiting line was updated 
+        if(stored_lines[uuid].content.length != $(this).text().length ||
+            stored_lines[uuid].content != $(this).text()){
+
+          //send off to diff worker to take the diff and update the server
+          diff_worker.postMessage([uuid, stored_lines[uuid].content, $(this).text()]);
+
+          //update the stored line in hash
+          stored_lines[uuid] = {"content": $(this).text()}
+          
+          //re-apply syntax highlighting
+          applySyntaxHighlighting(this);
+        }
+
+        //uncheck this lines uuid from removed lines array
+        removed_lines_uuids.splice(removed_lines_uuids.indexOf(uuid), 1);
+      }
+    });
+
+    //work with deleted lines
+    if(removed_lines_uuids.length > 0){
+      //iterate through the stale uuids
+      $.each(removed_lines_uuids, function(){
+        //remove the line from hash
+        delete stored_lines[this];
+
+        //send 'remove line' message to server
+        console.log("removed line" + this);
+      });
+    }
+  }
+
+  var workOnDirtyNodes = function(){
+    $("#editable_content").children("div").children("p").each(function(i){
+        //add the new element to array
+        if(dirty_nodes[i] == undefined){
+          addToDirtyNodes(i, this)
+        }
+        //update existing element
+        else if(dirty_nodes[i].content.length != $(this).text().length ||
+                dirty_nodes[i].content != $(this).text()){
+            addToDirtyNodes(i, this)
+        }
+    });
+  }
+
+  var addToDirtyNodes = function(index, node){
+    var node_id = "line"+index;
+    $(node).attr("id", node_id );
+
+    //call highlight function
+    $("#" + node_id).everyTime(500, function(){
+      if(window.getSelection){
+        var selObj = window.getSelection();
+        var selParent = (selObj.anchorNode && selObj.anchorNode.parentNode);
+        var thisLine = $("#" + node_id);
+
+        if(thisLine[0] == selParent || $.contains(thisLine[0], selParent)){
+          return false
+        }
+        else {
+          thisLine.html(prettyPrintOne(thisLine.text()));
+          $(this).stopTime();
+        }
+      }
+    });
+
+    //calculate the diff
+    diff_worker.postMessage([node_id, (dirty_nodes[index] ? dirty_nodes[index].content : ""), $(node).text()]);
+
+    //add to array
+    dirty_nodes[index] = {"id": node_id, "content": $(node).text()}
   }
 
   // set an interval to invoke taking diffs  (every 500ms)
-  window.setInterval(takeDiff, 500);
+  //window.setInterval(takeDiff, 500);
 
   // periodically check for available patches and apply them
-  window.setInterval(checkForPatches, 100);
+  //window.setInterval(checkForPatches, 100);
 
   // periodically send the content for syntax highlighting
-  window.setInterval(doSyntaxHighlighting, 500);
-
-  // TODO: highlight the changes
+  //window.setInterval(markAsDirty, 500);
+  window.setInterval(inspectLineChanges, 500);
 
   var addUser = function(id){
     new_user_li = $("<li></li>");

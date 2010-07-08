@@ -26,12 +26,12 @@ get('/pad', function(){
         var reply_lines = JSON.parse(reply.toString('utf8'))["message"].split("\n"); 
         var html_lines = [];
         for(var line_no in reply_lines){
-          html_lines.push("<li>" + reply_lines[line_no] + "</li>"); 
+          html_lines.push("<div>" + reply_lines[line_no] + "</div>"); 
         }
         var snapshot_html = html_lines.join("");
       }
       else 
-        var snapshot_html = "<li>&nbsp;</li>";
+        var snapshot_html = "";
 
 
       self.render('pad.html.ejs', {

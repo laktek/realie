@@ -1,6 +1,3 @@
-[submodule "vendor/express"]
-	path = vendor/express
-	url = http://github.com/visionmedia/express.git
 [submodule "vendor/node-websocket-server"]
 	path = vendor/node-websocket-server
 	url = http://github.com/miksago/node-websocket-server.git
