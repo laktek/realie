@@ -97,12 +97,12 @@ $(function() {
   var previous_text = get_editable_content();
 
   diff_worker.onmessage = function(ev){
-    console.log("received diff")
-    console.log(ev.data); 
+    var uuid = ev.data.id;
+    var message = ev.data.changes;
 
     // send the diff to server via the open socket
     //if(ev.data != "send_snapshot")
-      //socket.send('{"type": "diff", "message":' + JSON.stringify(ev.data) + '}');
+    socket.send('{"type": "modify_line",' + '"uuid": ' + JSON.stringify(uuid) + ', "message":' + JSON.stringify(message) + '}');
     //else
       //takeSnapshot();
   };
@@ -137,32 +137,45 @@ $(function() {
   var take_diffs = true;
 
   //Client Socket Methods
-  // var socket = new WebSocket('ws://localhost:8080');
-  // socket.onmessage = function(ev){
-  //   received_msg = JSON.parse(ev.data);
+   var socket = new WebSocket('ws://localhost:8080');
+   socket.onmessage = function(ev){
+     received_msg = JSON.parse(ev.data);
+     console.log(received_msg);
 
-  //   switch(received_msg["channel"]){
-  //     case "initial":
-  //       user_id = received_msg["id"];
-  //       for(var user_index in received_msg["users"]){
-  //         addUser(received_msg["users"][user_index]);
-  //       }
-  //       break;
-  //     case "join":
-  //       if(received_msg["payload"]["user"] != user_id)
-  //         addUser(received_msg["payload"]["user"]);
-  //       break;
-  //     case "chat":
-  //       newChatMessage(received_msg["payload"]["user"], received_msg["payload"]["message"]);
-  //       break;
+     switch(received_msg["channel"]){
+       case "initial":
+         user_id = received_msg["id"];
+         for(var user_index in received_msg["users"]){
+           addUser(received_msg["users"][user_index]);
+         }
+         break;
+       case "join":
+         if(received_msg["payload"]["user"] != user_id)
+           addUser(received_msg["payload"]["user"]);
+         break;
+       case "chat":
+         newChatMessage(received_msg["payload"]["user"], received_msg["payload"]["message"]);
+         break;
+       case "add_line":
+         if(received_msg["payload"]["user"] != user_id)
+           //addLine(received_msg["payload"]["user"]);
+         break;
+       case "modify_line":
+         if(received_msg["payload"]["user"] != user_id)
+           //modifyLine(received_msg["payload"]["user"]);
+         break;
+       case "remove_line":
+         if(received_msg["payload"]["user"] != user_id)
+           //removeLine(received_msg["payload"]["user"]);
+         break;
   //     case "diff":
   //       //store the diff in a queue
   //       diff_queue.push({'user': received_msg["payload"]["user"], 'patch':received_msg["payload"]["message"]})
   //       break;
-  //     default:
-  //       console.log(received_msg);
-  //   }
-  // }
+       default:
+         console.log(received_msg);
+     }
+   }
 
   // *Sending updates as users type*
   var takeDiff = function(){
@@ -235,6 +248,29 @@ $(function() {
     return padid + "_" + userid + "_" + timestamp;
   };
 
+  var setCaretPosition = function(elem, caretPos) {
+      //var elem = document.getElementById(elemId);
+
+      if(elem != null) {
+          if(document.createRange) {
+              var range = document.createRange();
+              range.setStart(elem, 1);
+              //range.setEnd(elem, 1);
+              //range.move('character', caretPos);
+              //range.select();
+              console.log("change caret")
+          }
+          else {
+              if(elem.selectionStart) {
+                  elem.focus();
+                  elem.setSelectionRange(caretPos, caretPos);
+              }
+              else
+                  elem.focus();
+          }
+      }
+  };
+
   var applySyntaxHighlighting = function(line){
     //get the id of the line
     //(jquery confuses the lines when the content changes, we can avoid it by explicitly calling the line id)
@@ -250,7 +286,23 @@ $(function() {
         //if the line is or its child elements are currently focused;
         //done attempt to highlight 
         if(thisLine[0] == selParent || $.contains(thisLine[0], selParent)){
-          console.log(selObj);
+          // var last_cursor_pos = selObj.anchorOffset;
+          // var highlighted_node = prettyPrintOne(selObj.anchorNode.textContent.substr(0, last_cursor_pos));
+          // $(selParent).html(highlighted_node);
+
+          // setCaretPosition($(selParent).children()[0], 1);
+
+          // $(selParent).children().each(function(){
+          //   if($(this).text().length >= last_cursor_pos)
+          //     setCaretPosition(this, last_cursor_pos);
+          //   else
+          //     last_cursor_pos -= $(this).text().length
+          // });
+
+
+          //selParent.insertBefore(highlighted_node, selObj.anchorNode);
+          //selObj.anchorNode.textContent = selObj.anchorNode.textContent.slice(0, selObj.anchorOffset-1) ;
+
           return false
         }
         //if the cursor is not on the line;
@@ -278,12 +330,15 @@ $(function() {
     editable_lines.each(function(i){
       //get the uuid of the line
       var uuid = $(this).attr('data-uuid');
+      var prev_uuid = $(this).prev('p').attr('data-uuid') || '';
+      var next_uuid = $(this).next('p').attr('data-uuid') || '';
+      var content = $(this).text();
 
       //is this a newly added line?
       //all previously stored lines will have a unique uuid 
       //when a new line is added browser copies the attributes of the previous line as is
       //also a new line could be without a uuid (first line & pasted lines)
-      if(uuid == undefined || uuid == $(this).prev('p').attr('data-uuid')){
+      if(uuid == undefined || uuid == prev_uuid){
         //this is a newly added line
 
         //give it a new id
@@ -297,10 +352,10 @@ $(function() {
         applySyntaxHighlighting(this);
         
         //store it in the hash
-        stored_lines[new_uuid] = {"content": $(this).text()}
+        stored_lines[new_uuid] = {"content": content}
         
         //send 'add line' message to server
-        console.log("added line");
+        socket.send('{"type": "add_line", "uuid":' + JSON.stringify(new_uuid) + ', "previous_uuid":' + JSON.stringify(prev_uuid) + ', "next_uuid":' + JSON.stringify(next_uuid) + ', "message":' + JSON.stringify(content) + '}');
         console.log(stored_lines[new_uuid]);
       }
 
@@ -333,6 +388,7 @@ $(function() {
         delete stored_lines[this];
 
         //send 'remove line' message to server
+        socket.send('{"type": "remove_line", "uuid":' + JSON.stringify(this) + '}');
         console.log("removed line" + this);
       });
     }
