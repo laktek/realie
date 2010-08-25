@@ -131,8 +131,8 @@ $(function() {
                            "#BABDFF", "#FFD4EB", "#AAFF75", "#FF9EAB", "#DCFF91", "#8088FF"
                           ];
   var assigned_colors = {};
-  var diff_queue = [];
-  var patching_process_running = false;
+  var update_queue  = [];
+  var updating_process_running = false;
   var playback_mode = false;
   var take_diffs = true;
 
@@ -140,7 +140,6 @@ $(function() {
    var socket = new WebSocket('ws://localhost:8080');
    socket.onmessage = function(ev){
      received_msg = JSON.parse(ev.data);
-     console.log(received_msg);
 
      switch(received_msg["channel"]){
        case "initial":
@@ -157,16 +156,16 @@ $(function() {
          newChatMessage(received_msg["payload"]["user"], received_msg["payload"]["message"]);
          break;
        case "add_line":
-         if(received_msg["payload"]["user"] != user_id)
-           //addLine(received_msg["payload"]["user"]);
+         //store the update in the queue
+         update_queue.push(received_msg);
          break;
        case "modify_line":
-         if(received_msg["payload"]["user"] != user_id)
-           //modifyLine(received_msg["payload"]["user"]);
+         //store the update in the queue
+         update_queue.push(received_msg);
          break;
        case "remove_line":
-         if(received_msg["payload"]["user"] != user_id)
-           //removeLine(received_msg["payload"]["user"]);
+         //store the update in the queue
+         update_queue.push(received_msg);
          break;
   //     case "diff":
   //       //store the diff in a queue
@@ -196,24 +195,77 @@ $(function() {
     set_editable_content($('#editable_content'), 'hello\nim testing this');
   }
 
-  // *Receiving updates*
-  var applyPatch = function(uid, patch){
+  //do the updates sequentially. 
+  //updates are stored in a stack.
+  var checkForUpdates = function(){
+   if(update_queue.length > 0 && updating_process_running == false) {
+     var current_update = update_queue.shift(); 
+     
+     if(!playback_mode && (current_update["payload"]["user"] == user_id))
+       return false;
+
+     applyUpdate(current_update["channel"], current_update["payload"]);
+     updating_process_running = true;
+   }
+  }
+
+  // perform received updates to the pad
+  // should send the action to perform - add line, modify line or remove line
+  // also all update parameters enclosed in a hash
+  var applyUpdate = function(action, update){
+     switch(action){
+       case "add_line":
+         addLine(update);
+         break;
+       case "modify_line":
+         modifyLine(update);
+         break;
+       case "remove_line":
+         removeLine(update);
+         break;
+       default:
+         console.log("invalid update");
+      };
     // when function is fired assign current text in editable area to a variable
-    current_text = get_editable_content(); //$("#editable_content").text();
-    patch_worker.postMessage([uid, patch, current_text]);
+    //current_text = get_editable_content(); //$("#editable_content").text();
+    //patch_worker.postMessage([uid, patch, current_text]);
   };
 
-  var checkForPatches = function(){
-    if(diff_queue.length > 0 && patching_process_running == false) {
-      current_patch = diff_queue.shift(); 
-      
-      if(!playback_mode && (current_patch["user"] == user_id))
-        return false;
+  //To add a line we need:
+  //it's uuid, previous line uuid and next line uuid and content 
+  var addLine = function(update){
+    //find the line with next uuid
+      //insert before next uuid
+      //apply syntax highlighting
+      //highlight the line
+    //else find the line with previous uuid
+      //insert after previous uuid
+      //apply syntax highlighting
+      //highlight the line
+    // insert as the first line
+      //apply syntax highlighting
+      //highlight the line
+  };
 
-      applyPatch(current_patch["user"], current_patch["patch"]);
-      patching_process_running = true;
-    }
-  }
+  //To modify a line we need:
+  // the uuid of the line and diff
+  var modifyLine = function(update){
+    //find the line with uuid
+
+    // get the line content
+    //
+    // send the uuid, line content and diff to patch worker
+  };
+
+  //To remove a line we need:
+  // the uuid of the line
+  var removeLine = function(update){
+    //find the line with uuid
+
+    //highlight the line
+
+    // remove the line from the pad
+  };
 
   $("#editable_content").keydown(function(ev){
       //don't delete the beyond p
@@ -355,7 +407,8 @@ $(function() {
         stored_lines[new_uuid] = {"content": content}
         
         //send 'add line' message to server
-        socket.send('{"type": "add_line", "uuid":' + JSON.stringify(new_uuid) + ', "previous_uuid":' + JSON.stringify(prev_uuid) + ', "next_uuid":' + JSON.stringify(next_uuid) + ', "message":' + JSON.stringify(content) + '}');
+        var line_msg = { "uuid": new_uuid, "previous_uuid": prev_uuid, "next_uuid": next_uuid, "content": content }
+        socket.send('{"type": "add_line", message:' + JSON.stringify(line_msg) + '}');
         console.log(stored_lines[new_uuid]);
       }
 
@@ -388,7 +441,8 @@ $(function() {
         delete stored_lines[this];
 
         //send 'remove line' message to server
-        socket.send('{"type": "remove_line", "uuid":' + JSON.stringify(this) + '}');
+        var line_msg = {"uuid": this}
+        socket.send('{"type": "remove_line", "message":' + JSON.stringify(line_msg) + '}');
         console.log("removed line" + this);
       });
     }
