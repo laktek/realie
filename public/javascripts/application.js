@@ -98,33 +98,33 @@ $(function() {
 
   diff_worker.onmessage = function(ev){
     var uuid = ev.data.id;
-    var message = ev.data.changes;
+    var content = ev.data.changes;
 
     // send the diff to server via the open socket
     //if(ev.data != "send_snapshot")
-    socket.send('{"type": "modify_line",' + '"uuid": ' + JSON.stringify(uuid) + ', "message":' + JSON.stringify(message) + '}');
-    //else
-      //takeSnapshot();
+    var line_msg = {"uuid": uuid, "content": content };
+    socket.send('{ "type": "modify_line", "message": ' + JSON.stringify(line_msg) + '}');
   };
 
   patch_worker.onmessage = function(ev){
-    patch_user_id = ev.data[0];
-    changed_content = ev.data[1];
+    var patching_uuid = ev.data[0];
+    var patch_user_id = ev.data[1];
+    var changed_content = ev.data[2];
+    var modifying_line = $("[data-uuid=" + patching_uuid + "]");
 
     if(changed_content != ""){
-      set_editable_content($("#editable_content"), changed_content, assigned_colors[patch_user_id]);
-      previous_text = get_editable_content();
+      $(modifying_line).html(changed_content);
+
+      //highlight the line
+      highlightUserEdit(modifying_line, patch_user_id);
+      
+      //apply syntax highlighting 
+      applySyntaxHighlighting(modifying_line);
+      
+      //update the stored line in hash
+      stored_lines[patching_uuid] = {"content": changed_content}
     }
   }
-
-//   patch_worker.onmessage = function(ev){
-//     changed_content = ev.data;
-// 
-//     if(changed_content != ""){
-//       set_editable_content($("#editable_content"), changed_content, "");
-//     }
-//   }
-
 
   var user_id;
   var predefined_colors = ["#FFCFEA", "#E8FF9C", "#FFCC91", "#42C0FF", "#A7FF9E", "#7DEFFF",
@@ -135,6 +135,7 @@ $(function() {
   var updating_process_running = false;
   var playback_mode = false;
   var take_diffs = true;
+  var stored_lines = {};
 
   //Client Socket Methods
    var socket = new WebSocket('ws://localhost:8080');
@@ -147,13 +148,23 @@ $(function() {
          for(var user_index in received_msg["users"]){
            addUser(received_msg["users"][user_index]);
          }
+
+         // periodically check for available updates and apply them
+         window.setInterval(checkForUpdates, 100);
+
+         // periodically send the content for syntax highlighting
+         window.setInterval(inspectLineChanges, 99);
+
          break;
        case "join":
          if(received_msg["payload"]["user"] != user_id)
            addUser(received_msg["payload"]["user"]);
          break;
+       case "leave":
+         removeUser(received_msg["payload"]["user"]);
+         break;
        case "chat":
-         newChatMessage(received_msg["payload"]["user"], received_msg["payload"]["message"]);
+         update_queue.push(received_msg);
          break;
        case "add_line":
          //store the update in the queue
@@ -167,10 +178,11 @@ $(function() {
          //store the update in the queue
          update_queue.push(received_msg);
          break;
-  //     case "diff":
-  //       //store the diff in a queue
-  //       diff_queue.push({'user': received_msg["payload"]["user"], 'patch':received_msg["payload"]["message"]})
-  //       break;
+       case "playback_done":
+         //store the update in the queue
+         update_queue.push(received_msg);
+         break;
+
        default:
          console.log(received_msg);
      }
@@ -200,12 +212,14 @@ $(function() {
   var checkForUpdates = function(){
    if(update_queue.length > 0 && updating_process_running == false) {
      var current_update = update_queue.shift(); 
-     
-     if(!playback_mode && (current_update["payload"]["user"] == user_id))
-       return false;
 
-     applyUpdate(current_update["channel"], current_update["payload"]);
+     if(current_update["channel"] != "chat"){
+       if(!playback_mode && (current_update["payload"]["user"] == user_id))
+         return false;
+     }
+
      updating_process_running = true;
+     applyUpdate(current_update["channel"], current_update["payload"]);
    }
   }
 
@@ -223,6 +237,12 @@ $(function() {
        case "remove_line":
          removeLine(update);
          break;
+       case "playback_done":
+         playback_mode = false;
+         break;
+       case "chat":
+         newChatMessage(update["user"], update["message"]);
+         break;
        default:
          console.log("invalid update");
       };
@@ -233,38 +253,81 @@ $(function() {
 
   //To add a line we need:
   //it's uuid, previous line uuid and next line uuid and content 
-  var addLine = function(update){
+  var addLine = function(payload){
+    content = payload["message"]["content"];
+    //new line html
+    var new_line = $("<p data-uuid='" + payload["message"]["uuid"] + "'>" + content + "</p>");
+
     //find the line with next uuid
+    var next_line = $("[data-uuid =" + payload["message"]["next_uuid"] + "]");
+    var previous_line = $("[data-uuid =" + payload["message"]["previous_uuid"] + "]");
+
+    if(next_line.length > 0){
       //insert before next uuid
-      //apply syntax highlighting
-      //highlight the line
+      next_line.before(new_line);
+    }
     //else find the line with previous uuid
+    else if(previous_line.length > 0){
       //insert after previous uuid
-      //apply syntax highlighting
-      //highlight the line
-    // insert as the first line
-      //apply syntax highlighting
-      //highlight the line
+      previous_line.after(new_line);
+    }
+    else {
+      // insert as the first line
+      $("div#editable_content div").append(new_line)
+    }
+
+    //highlight the line
+    highlightUserEdit(new_line, payload["user"]);
+
+    //apply syntax highlighting 
+    applySyntaxHighlighting(new_line);
+     
+    //update the stored line in hash
+    stored_lines[payload["message"]["uuid"]] = {"content": payload["message"]["content"]};
+
+    updating_process_running = false;
   };
 
   //To modify a line we need:
   // the uuid of the line and diff
-  var modifyLine = function(update){
+  var modifyLine = function(payload){
     //find the line with uuid
+    var uuid = payload["message"]["uuid"];
+    var user_id = payload["user"];
+    var patch = payload["message"]["content"];
 
-    // get the line content
-    //
+    var current_text = $("[data-uuid=" + uuid + "]").text();
+
     // send the uuid, line content and diff to patch worker
+    patch_worker.postMessage({"uuid": uuid, "patch": patch, 
+                              "current_text": current_text, "user_id": user_id });
+    updating_process_running = false;
   };
 
   //To remove a line we need:
   // the uuid of the line
-  var removeLine = function(update){
+  var removeLine = function(payload){
     //find the line with uuid
+    var uuid = payload["message"]["uuid"];
+    var user_id = payload["user"];
+    var line = $("[data-uuid=" + uuid + "]");
 
     //highlight the line
+    highlightUserEdit(line, payload["user"], function(){
+      // remove the line from the pad
+      line.remove();
+      delete stored_lines[uuid];
+    });
 
-    // remove the line from the pad
+       updating_process_running = false;
+  };
+
+  var highlightUserEdit = function(line, user, callback){
+    line.animate({ backgroundColor: assigned_colors[user] }, 'fast')
+        .animate({ backgroundColor: "#FFFFFF" }, 'slow');
+
+    if(callback)
+      callback.call();
   };
 
   $("#editable_content").keydown(function(ev){
@@ -278,14 +341,13 @@ $(function() {
       }
   });
 
-  var stored_lines = {};
 
   var generateUUID = function(){
     //get the pad id
     var padid = "1";
     
     //get the user id
-    var userid = "1";
+    var userid = user_id;
 
     //get the current timestamp (in UTC)
     var d = new Date();
@@ -324,9 +386,9 @@ $(function() {
   };
 
   var applySyntaxHighlighting = function(line){
-    //get the id of the line
+    //get the uuid of the line
     //(jquery confuses the lines when the content changes, we can avoid it by explicitly calling the line id)
-    var line_id = "#" + $(line).attr("id");
+    var line_id = "[data-uuid=" + $(line).attr("data-uuid") + "]";
 
     //keep checking whether the line is still edited by user
     $(line_id).everyTime(500, function(){
@@ -408,12 +470,10 @@ $(function() {
         
         //send 'add line' message to server
         var line_msg = { "uuid": new_uuid, "previous_uuid": prev_uuid, "next_uuid": next_uuid, "content": content }
-        socket.send('{"type": "add_line", message:' + JSON.stringify(line_msg) + '}');
-        console.log(stored_lines[new_uuid]);
+        socket.send('{"type": "add_line", "message":' + JSON.stringify(line_msg) + '}');
       }
 
       else {
-
         //check whether this exisiting line was updated 
         if(stored_lines[uuid].content.length != $(this).text().length ||
             stored_lines[uuid].content != $(this).text()){
@@ -443,7 +503,6 @@ $(function() {
         //send 'remove line' message to server
         var line_msg = {"uuid": this}
         socket.send('{"type": "remove_line", "message":' + JSON.stringify(line_msg) + '}');
-        console.log("removed line" + this);
       });
     }
   }
@@ -493,21 +552,18 @@ $(function() {
   // set an interval to invoke taking diffs  (every 500ms)
   //window.setInterval(takeDiff, 500);
 
-  // periodically check for available patches and apply them
-  //window.setInterval(checkForPatches, 100);
-
-  // periodically send the content for syntax highlighting
-  //window.setInterval(markAsDirty, 500);
-  window.setInterval(inspectLineChanges, 500);
-
   var addUser = function(id){
-    new_user_li = $("<li></li>");
+    var new_user_li = $("<li id='user-" + id + "'></li>");
     assigned_colors[id] = predefined_colors.pop();
 
     new_user_li.append("<span class='user_color' style='background-color:" + assigned_colors[id] + "; color: " + assigned_colors[id] + "'>.</span>");
     new_user_li.append("<span class='user_name'>User-" + id + "</span>");
     $("#users_list").append(new_user_li); 
-  }
+  };
+
+  var removeUser = function(id){
+    $("li#user-" + id).remove();
+  };
   
   var play_chat_sound = true;
 
@@ -546,10 +602,10 @@ $(function() {
     //turn on the playback mode
     playback_mode = true;
 
-    //clear the pad
-    previous_text = "";
-    $("#editable_content").html("<li></li>");
-
+    //clear everything (pad, chat, users) 
+    $("#editable_content div").html("");
+    stored_lines = {};
+    $("ul#chat_messages").html("");
   }
 
   $("#input_chat_message").keypress(function(ev){

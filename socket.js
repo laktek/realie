@@ -37,7 +37,7 @@ server.addListener("connection", function(conn){
     function (channel, message, subscriptionPattern) {
       var output = '{"channel": "' + channel + '", "payload": ' + message + '}';
  
-       sys.puts(output);
+       //sys.puts(output);
        conn.write(output);
   });
 
@@ -56,11 +56,6 @@ server.addListener("connection", function(conn){
          // });
          //
  
-         // main_store.get('pad-snapshot', function(err, reply){
-         //   if(reply)
-         //     conn.write('{"channel": "snapshot", "payload": ' + reply + '}');
-         // });
- 
          main_store.lrange('pad-chat', 0, -1, function(err, messages){
            for(var msg_id in messages){
              conn.write('{"channel": "chat", "payload": ' + messages[msg_id] + '}');
@@ -68,13 +63,11 @@ server.addListener("connection", function(conn){
          });
  
          //publish the message when joining
-         conn.redis_publisher.stream.addListener("connect", function () {
-           conn.redis_publisher.publish("join", JSON.stringify({"user": conn.user_id}),
-           function (err, reply) {
-             sys.puts(err);
-             sys.puts("Published message to " +
-             (reply === 0 ? "no one" : (reply + " subscriber(s).")));
-           });
+         conn.redis_publisher.publish("join", JSON.stringify({"user": conn.user_id}),
+         function (err, reply) {
+           sys.puts(err);
+           sys.puts("Published message to " +
+           (reply === 0 ? "no one" : (reply + " subscriber(s).")));
          });
     });  
   });
@@ -86,7 +79,7 @@ server.addListener("connection", function(conn){
      channel = message_obj["type"];
      message = message_obj["message"];
      timestamp = new Date().getTime();
-     serialized_message = JSON.stringify({"user": this.user_id, "message": message, "timestamp": timestamp });
+     serialized_message = JSON.stringify({"user": this.user_id, "message": message, "timestamp": timestamp, "channel": channel });
  
      //store snapshot
     if(channel == "snapshot"){
@@ -95,21 +88,24 @@ server.addListener("connection", function(conn){
      }
      //send all the exisiting diff messages
      else if(channel == "playback"){
-       main_store.lrange('pad-diff', 0, -1, function(err, messages){
+       main_store.lrange('pad-1', 0, -1, function(err, messages){
          for(var msg_id in messages){
            log(messages[msg_id]);
-           conn.write('{"channel": "diff", "payload": ' + messages[msg_id] + '}');
+           var parsed_msg = JSON.parse(messages[msg_id]); //this is a dirty hack REMOVE!
+           conn.write('{"channel":"' + parsed_msg['channel'] + '", "payload": ' + messages[msg_id] + '}');
          }
+
+         //once all messages sent, send a playback complete message
+         conn.write('{"channel": "playback_done", "payload": "" }');
        });
      }
      else {
        conn.redis_publisher.publish(channel, serialized_message,
          function (err, reply) {
-           sys.puts(err);
            sys.puts("Published message to " +
              (reply === 0 ? "no one" : (reply + " subscriber(s).")));
            //store the messages on main store
-           main_store.rpush('pad-' + channel, serialized_message, function(err, reply){});
+           main_store.rpush('pad-1', serialized_message, function(err, reply){});
        });
      }
   });
