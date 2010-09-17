@@ -5,3 +5,6 @@
 	path = vendor/redis-node-client
 	url = http://github.com/fictorial/redis-node-client.git
 
+[submodule "vendor/express"]
+	path = vendor/express
+	url = http://github.com/visionmedia/express.git
