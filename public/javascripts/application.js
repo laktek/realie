@@ -1,7 +1,7 @@
 $(function() {
   //spawn a new worker to notify the changes
-  var diff_worker = new Worker('/public/javascripts/diff_worker.js');
-  var patch_worker = new Worker('/public/javascripts/patch_worker.js');
+  var diff_worker = new Worker('/javascripts/diff_worker.js');
+  var patch_worker = new Worker('/javascripts/patch_worker.js');
   //var syntax_highlighting_worker = new Worker('/public/javascripts/syntax_highlighting_worker.js');
 
   var get_editable_content = function(){
@@ -138,7 +138,7 @@ $(function() {
   var stored_lines = {};
 
   //Client Socket Methods
-   var socket = new WebSocket('ws://localhost:8080');
+   var socket = new WebSocket('ws://localhost:8090');
    socket.onmessage = function(ev){
      received_msg = JSON.parse(ev.data);
 
