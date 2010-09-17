@@ -35,7 +35,7 @@ var main_store = redis.createClient();
 //app.set('views', __dirname + '/views');
 
 
-app.get('/', function(req, res){
+app.get('/pad', function(req, res){
   //self = this;
   main_store.get('pad-snapshot', function(err, reply){
       if(reply){

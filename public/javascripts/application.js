@@ -138,7 +138,7 @@ $(function() {
   var stored_lines = {};
 
   //Client Socket Methods
-   var socket = new WebSocket('ws://localhost:8090');
+   var socket = new WebSocket('ws://localhost:8080');
    socket.onmessage = function(ev){
      received_msg = JSON.parse(ev.data);
 
