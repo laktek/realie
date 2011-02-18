@@ -9,7 +9,7 @@ If you like to test out the app you will need to install the following:
 2) Redis 2.0 (still in Release Candidate stage) - http://code.google.com/p/redis/
 3) Node.js - 0.1.96+ (http://nodejs.org)
 
-Follow the standard installations of above programs as mentioned in there documentation.
+Follow the standard installations of above programs as mentioned in their documentation.
 
 Once you have setup those, 
 * Clone this repository - https://laktek@github.com/laktek/realie.git
