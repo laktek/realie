@@ -127,7 +127,7 @@ server.addListener("close", function(conn){
    conn.redis_subscriber.close();
 });
 
-server.listen(8080);
+server.listen(8090);
 
 // old web-socket listeners
 // server.addListener("client", function(conn){
